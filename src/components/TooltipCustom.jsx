@@ -1,34 +1,75 @@
+import { REGION_COLORS } from './RegionFilter'
+
 const ENOS_COLORS = {
   'El Niño': '#fb923c',
   'La Niña': '#60a5fa',
-  'Neutro': '#94a3b8',
+  'Neutro':  '#94a3b8',
 }
 
-export default function TooltipCustom({ active, payload, label }) {
-  if (!active || !payload || payload.length === 0) return null
+const VARIABLE_UNIT = {
+  precipitacion_mm: 'mm',
+  temp_media_c: '°C',
+  humedad_pct: '%',
+}
 
+/** Overview tooltip — shows all regions from payload + ENOS phase */
+function OverviewTooltip({ payload, label, variable }) {
+  if (!payload || payload.length === 0) return null
+  const d = payload[0]?.payload ?? {}
+  const unit = VARIABLE_UNIT[variable] ?? ''
+
+  return (
+    <div className="rounded-xl border border-slate-600 shadow-2xl text-xs" style={{ background: '#1e293b', minWidth: 190 }}>
+      <div className="px-4 py-2 border-b border-slate-700 font-semibold text-slate-200">
+        {d.mes_nombre ?? label}
+        {d.año ? ` · ${d.año}` : ''}
+      </div>
+      <div className="px-4 py-3 space-y-1.5">
+        {d.fase_enos && (
+          <Row
+            label="Fase ENOS"
+            value={<span style={{ color: ENOS_COLORS[d.fase_enos] }}>{d.fase_enos}</span>}
+          />
+        )}
+        <div className="border-t border-slate-700/60 pt-1.5 mt-1.5 space-y-1">
+          {payload.map((entry) => {
+            const region = entry.name
+            const val = entry.value
+            const tempKey = `${region}__temp`
+            return (
+              <div key={region} className="flex justify-between gap-4">
+                <span style={{ color: REGION_COLORS[region] ?? '#94a3b8' }}>{region}</span>
+                <span className="text-slate-200 font-medium">
+                  {typeof val === 'number' ? val.toFixed(1) : val} {unit}
+                  {d[tempKey] !== undefined && (
+                    <span className="text-slate-500 font-normal"> · {d[tempKey].toFixed(1)} °C</span>
+                  )}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Detail tooltip — shows all climate variables for a single region */
+function DetailTooltip({ payload, label }) {
+  if (!payload || payload.length === 0) return null
   const d = payload[0]?.payload ?? {}
 
   return (
-    <div
-      className="rounded-xl border border-slate-600 shadow-2xl text-xs"
-      style={{ background: '#1e293b', minWidth: 200 }}
-    >
+    <div className="rounded-xl border border-slate-600 shadow-2xl text-xs" style={{ background: '#1e293b', minWidth: 200 }}>
       <div className="px-4 py-2 border-b border-slate-700 font-semibold text-slate-200">
-        {d.mes_nombre ?? label} {d.año ? `· ${d.año}` : ''}
+        {d.mes_nombre ?? label}{d.año ? ` · ${d.año}` : ''}
       </div>
       <div className="px-4 py-3 space-y-1.5">
-        {d.region && (
-          <Row label="Región" value={d.region} />
-        )}
-        {d.fase_enos !== undefined && (
+        {d.region && <Row label="Región" value={d.region} />}
+        {d.fase_enos && (
           <Row
             label="Fase ENOS"
-            value={
-              <span style={{ color: ENOS_COLORS[d.fase_enos] ?? '#e2e8f0' }}>
-                {d.fase_enos}
-              </span>
-            }
+            value={<span style={{ color: ENOS_COLORS[d.fase_enos] }}>{d.fase_enos}</span>}
           />
         )}
         {d.precipitacion_mm !== undefined && (
@@ -52,6 +93,14 @@ export default function TooltipCustom({ active, payload, label }) {
       </div>
     </div>
   )
+}
+
+export default function TooltipCustom({ active, payload, label, mode, variable }) {
+  if (!active) return null
+  if (mode === 'overview') {
+    return <OverviewTooltip payload={payload} label={label} variable={variable} />
+  }
+  return <DetailTooltip payload={payload} label={label} />
 }
 
 function Row({ label, value }) {
