@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 export const REGION_COLORS = {
   'Pacífico Norte':   '#f97316',
   'Pacífico Central': '#eab308',
@@ -58,6 +60,27 @@ const MONTHS = [
 
 const ALL_MONTHS = MONTHS.map((m) => m.n)
 
+// Centroides aproximados de cada zona climática de Costa Rica
+const REGION_CENTROIDS = {
+  'Pacífico Norte':   { lat: 10.6, lng: -85.4 },
+  'Pacífico Central': { lat: 9.8,  lng: -84.8 },
+  'Pacífico Sur':     { lat: 8.7,  lng: -83.5 },
+  'Valle Central':    { lat: 9.9,  lng: -84.0 },
+  'Zona Norte':       { lat: 10.7, lng: -84.3 },
+  'Caribe Norte':     { lat: 10.3, lng: -83.4 },
+  'Caribe Sur':       { lat: 9.4,  lng: -82.9 },
+}
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 export default function RegionFilter({
   // data source
   dataSource, onDataSourceChange,
@@ -75,9 +98,13 @@ export default function RegionFilter({
   selectedRegions, onToggleRegion,
   // detail region
   selectedDetail, onDetailChange,
+  // geolocation callback
+  onNearestRegions,
 }) {
   const allRegions = selectedRegions.length === ALL_REGIONS.length
   const allMonths  = selectedMonths.length === 12
+
+  const [geoStatus, setGeoStatus] = useState('idle') // 'idle' | 'loading' | 'error'
 
   function toggleAllRegions() {
     onToggleRegion(null, allRegions ? 'none' : 'all')
@@ -85,7 +112,7 @@ export default function RegionFilter({
 
   function toggleMonth(n) {
     if (selectedMonths.includes(n)) {
-      if (selectedMonths.length === 1) return // keep at least one
+      if (selectedMonths.length === 1) return
       onMonthsChange(selectedMonths.filter((m) => m !== n))
     } else {
       onMonthsChange([...selectedMonths, n].sort((a, b) => a - b))
@@ -102,8 +129,26 @@ export default function RegionFilter({
     onDayRangeChange({ ...dayRange, to: n })
   }
 
+  function handleGeolocate() {
+    if (!navigator.geolocation) { setGeoStatus('error'); return }
+    setGeoStatus('loading')
+    navigator.geolocation.getCurrentPosition(
+      ({ coords: { latitude: lat, longitude: lng } }) => {
+        const nearest = Object.entries(REGION_CENTROIDS)
+          .map(([region, c]) => ({ region, dist: haversineKm(lat, lng, c.lat, c.lng) }))
+          .sort((a, b) => a.dist - b.dist)
+          .slice(0, 3)
+          .map((d) => d.region)
+        onNearestRegions(nearest)
+        setGeoStatus('idle')
+      },
+      () => setGeoStatus('error'),
+      { timeout: 8000 }
+    )
+  }
+
   return (
-    <aside className="w-64 flex-shrink-0 space-y-5">
+    <div className="space-y-5">
 
       {/* ── Fuente ── */}
       <Section label="Tipo de vista">
@@ -241,9 +286,11 @@ export default function RegionFilter({
               />
             </div>
             <p className="text-xs text-slate-500 text-center">
-              {dayRange.from === 1 && dayRange.to === 31
-                ? 'Todos los días del mes'
-                : `Días ${dayRange.from} al ${dayRange.to} de cada mes`}
+              {dayRange.from === dayRange.to
+                ? `Día ${dayRange.from} de cada mes · promedio 2020–2025`
+                : dayRange.from === 1 && dayRange.to === 31
+                  ? 'Todos los días del mes'
+                  : `Días ${dayRange.from} al ${dayRange.to} de cada mes`}
             </p>
             {(dayRange.from !== 1 || dayRange.to !== 31) && (
               <button
@@ -303,6 +350,34 @@ export default function RegionFilter({
             )
           })}
         </div>
+
+        {/* Botón de geolocalización */}
+        <div className="mt-2 space-y-1">
+          <button
+            onClick={handleGeolocate}
+            disabled={geoStatus === 'loading'}
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs border border-slate-600 text-slate-400 hover:border-blue-500 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {geoStatus === 'loading' ? (
+              <>
+                <span className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin" />
+                Localizando…
+              </>
+            ) : (
+              <>
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0">
+                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                </svg>
+                Seleccionar 3 zonas cercanas
+              </>
+            )}
+          </button>
+          {geoStatus === 'error' && (
+            <p className="text-xs text-red-400 text-center">
+              No se pudo obtener la ubicación
+            </p>
+          )}
+        </div>
       </Section>
 
       {/* ── Detalle ── */}
@@ -324,7 +399,7 @@ export default function RegionFilter({
         )}
       </Section>
 
-    </aside>
+    </div>
   )
 }
 
