@@ -146,11 +146,11 @@ function ScaleBar({ variable, min, max }) {
       <span style={{ minWidth: 36, textAlign: 'right' }}>{min.toFixed(0)}{unit}</span>
       <div style={{ flex: 1 }}>
         <div className="scale-bar-track" style={{ background: `linear-gradient(to right, ${gradient})` }} />
-        <div className="scale-bar-ticks">
+        {/* <div className="scale-bar-ticks">
           {ticks.map((v, i) => (
             <span key={i}>{v.toFixed(0)}{unit}</span>
           ))}
-        </div>
+        </div> */}
       </div>
       <span style={{ minWidth: 36 }}>{max.toFixed(0)}{unit}</span>
     </div>
