@@ -10,45 +10,65 @@ const H = 480
 const MAP_EXTENT = [[70, 28], [730, 452]]
 
 const REGION_LABELS = {
-  'Pac\u00edfico Norte': 'Pac. Norte',
-  'Pac\u00edfico Central': 'Pac. Central',
-  'Pac\u00edfico Sur': 'Pac. Sur',
-  'Valle Central': 'Valle Central',
-  'Zona Norte': 'Zona Norte',
-  'Caribe Norte': 'Caribe Norte',
-  'Caribe Sur': 'Caribe Sur',
+  'Pacífico Norte':   'Pac. Norte',
+  'Pacífico Central': 'Pac. Central',
+  'Pacífico Sur':     'Pac. Sur',
+  'Valle Central':    'Valle Central',
+  'Zona Norte':       'Zona Norte',
+  'Caribe Norte':     'Caribe Norte',
+  'Caribe Sur':       'Caribe Sur',
 }
 
 const LABEL_OFFSETS = {
-  'Pac\u00edfico Norte': [-16, 0],
-  'Zona Norte': [8, -4],
-  'Caribe Norte': [16, -2],
-  'Valle Central': [2, 4],
-  'Pac\u00edfico Central': [12, -4],
-  'Caribe Sur': [18, 0],
-  'Pac\u00edfico Sur': [-10, 14],
+  'Pacífico Norte':   [-16, 0],
+  'Zona Norte':       [8, -4],
+  'Caribe Norte':     [16, -2],
+  'Valle Central':    [2, 4],
+  'Pacífico Central': [12, -4],
+  'Caribe Sur':       [18, 0],
+  'Pacífico Sur':     [-10, 14],
 }
 
 function normalizeFeatureWinding(feature) {
   if (!feature?.geometry || geoArea(feature) <= 1) return feature
-
   const clone = structuredClone(feature)
   if (clone.geometry.type === 'Polygon') {
-    clone.geometry.coordinates = clone.geometry.coordinates.map((ring) => [...ring].reverse())
+    clone.geometry.coordinates = clone.geometry.coordinates.map(ring => [...ring].reverse())
   } else if (clone.geometry.type === 'MultiPolygon') {
-    clone.geometry.coordinates = clone.geometry.coordinates.map((polygon) =>
-      polygon.map((ring) => [...ring].reverse()),
+    clone.geometry.coordinates = clone.geometry.coordinates.map(polygon =>
+      polygon.map(ring => [...ring].reverse()),
     )
   }
   return clone
 }
 
-// ─── Color scales ─────────────────────────────────────────────────────────────
+// ─── 6-stop choropleth scales (r,g,b tuples) ─────────────────────────────────
 
-const COLOR_SCALES = {
-  precipitacion_mm: { from: [219, 234, 254], to: [30, 64, 175]  },
-  temp_media_c:     { from: [254, 249, 195], to: [185, 28,  28] },
-  humedad_pct:      { from: [209, 250, 229], to: [6,   95,  70] },
+const COLOR_STOPS = {
+  precipitacion_mm: [
+    [240, 249, 255],  // #f0f9ff
+    [186, 230, 253],  // #bae6fd
+    [125, 211, 252],  // #7dd3fc
+    [59,  130, 246],  // #3b82f6
+    [37,  99,  235],  // #2563eb
+    [30,  64,  175],  // #1e40af
+  ],
+  temp_media_c: [
+    [254, 243, 199],  // #fef3c7
+    [252, 211, 77],   // #fcd34d
+    [251, 146, 60],   // #fb923c
+    [239, 68,  68],   // #ef4444
+    [220, 38,  38],   // #dc2626
+    [185, 28,  28],   // #b91c1c
+  ],
+  humedad_pct: [
+    [236, 253, 245],  // #ecfdf5
+    [167, 243, 208],  // #a7f3d0
+    [52,  211, 153],  // #34d399
+    [5,   150, 105],  // #059669
+    [4,   120, 87],   // #047857
+    [6,   95,  70],   // #065f46
+  ],
 }
 
 const VARIABLE_LABEL = {
@@ -56,16 +76,19 @@ const VARIABLE_LABEL = {
   temp_media_c:     'Temp. media (°C)',
   humedad_pct:      'Humedad (%)',
 }
-const VARIABLE_UNIT = { precipitacion_mm: 'mm', temp_media_c: '°C', humedad_pct: '%' }
-const ENOS_COLORS   = { 'El Niño': '#fb923c', 'La Niña': '#60a5fa', 'Neutro': '#94a3b8' }
-
-function lerp(a, b, t) { return Math.round(a + (b - a) * t) }
+const VARIABLE_UNIT  = { precipitacion_mm: 'mm', temp_media_c: '°C', humedad_pct: '%' }
+const ENOS_COLORS    = { 'El Niño': '#ea580c', 'La Niña': '#2563eb', 'Neutro': '#78716c' }
 
 function scaleColor(value, min, max, variable) {
-  if (value == null || isNaN(value)) return '#1e293b'
-  const sc = COLOR_SCALES[variable] ?? COLOR_SCALES.precipitacion_mm
-  const t  = max === min ? 0.5 : Math.max(0, Math.min(1, (value - min) / (max - min)))
-  return `rgb(${lerp(sc.from[0], sc.to[0], t)},${lerp(sc.from[1], sc.to[1], t)},${lerp(sc.from[2], sc.to[2], t)})`
+  if (value == null || isNaN(value)) return '#e7e5e4'
+  const stops = COLOR_STOPS[variable] ?? COLOR_STOPS.precipitacion_mm
+  const t = max === min ? 0.5 : Math.max(0, Math.min(1, (value - min) / (max - min)))
+  const N = stops.length - 1
+  const seg = Math.min(Math.floor(t * N), N - 1)
+  const local = t * N - seg
+  const [r0, g0, b0] = stops[seg]
+  const [r1, g1, b1] = stops[seg + 1]
+  return `rgb(${Math.round(r0 + (r1 - r0) * local)},${Math.round(g0 + (g1 - g0) * local)},${Math.round(b0 + (b1 - b0) * local)})`
 }
 
 function formatMapValue(data, variable) {
@@ -85,11 +108,11 @@ function buildMapData(rawRecords, source, dayRange, selectedYear, selectedMonths
   let data = [...rawRecords]
   if (source === 'daily') {
     const { from, to } = dayRange
-    if (from !== 1 || to !== 31) data = data.filter((d) => d.dia >= from && d.dia <= to)
+    if (from !== 1 || to !== 31) data = data.filter(d => d.dia >= from && d.dia <= to)
     data = aggregateToMonthly(data)
   }
-  if (selectedYear !== 'all') data = data.filter((d) => d.año === selectedYear)
-  if (selectedMonths.length < 12) data = data.filter((d) => selectedMonths.includes(d.mes))
+  if (selectedYear !== 'all') data = data.filter(d => d.año === selectedYear)
+  if (selectedMonths.length < 12) data = data.filter(d => selectedMonths.includes(d.mes))
 
   const byRegion = {}
   for (const d of data) (byRegion[d.region] ??= []).push(d)
@@ -97,7 +120,7 @@ function buildMapData(rawRecords, source, dayRange, selectedYear, selectedMonths
   const result = {}
   for (const [region, items] of Object.entries(byRegion)) {
     const n   = items.length
-    const avg = (c) => items.reduce((s, d) => s + (d[c] ?? 0), 0) / n
+    const avg = c => items.reduce((s, d) => s + (d[c] ?? 0), 0) / n
     result[region] = {
       precipitacion_mm: +avg('precipitacion_mm').toFixed(1),
       temp_media_c:     +avg('temp_media_c').toFixed(1),
@@ -111,23 +134,25 @@ function buildMapData(rawRecords, source, dayRange, selectedYear, selectedMonths
   return result
 }
 
-// ─── Color legend bar ─────────────────────────────────────────────────────────
+// ─── Scale bar ────────────────────────────────────────────────────────────────
 
-function ColorLegend({ variable, min, max }) {
-  const sc   = COLOR_SCALES[variable] ?? COLOR_SCALES.precipitacion_mm
-  const unit = VARIABLE_UNIT[variable] ?? ''
+function ScaleBar({ variable, min, max }) {
+  const stops = COLOR_STOPS[variable] ?? COLOR_STOPS.precipitacion_mm
+  const unit  = VARIABLE_UNIT[variable] ?? ''
+  const gradient = stops.map((c, i) => `rgb(${c.join(',')}) ${(i / (stops.length - 1) * 100).toFixed(0)}%`).join(', ')
+  const ticks = [min, (min + max) / 2, max]
   return (
-    <div className="flex items-center gap-2 mt-2">
-      <span className="text-xs text-slate-500 tabular-nums w-12 text-right">
-        {min.toFixed(1)}{unit}
-      </span>
-      <div
-        className="flex-1 h-2.5 rounded-full"
-        style={{ background: `linear-gradient(to right, rgb(${sc.from.join(',')}), rgb(${sc.to.join(',')}))` }}
-      />
-      <span className="text-xs text-slate-500 tabular-nums w-12">
-        {max.toFixed(1)}{unit}
-      </span>
+    <div className="scale-bar" style={{ padding: '4px 0 8px' }}>
+      <span style={{ minWidth: 36, textAlign: 'right' }}>{min.toFixed(0)}{unit}</span>
+      <div style={{ flex: 1 }}>
+        <div className="scale-bar-track" style={{ background: `linear-gradient(to right, ${gradient})` }} />
+        <div className="scale-bar-ticks">
+          {ticks.map((v, i) => (
+            <span key={i}>{v.toFixed(0)}{unit}</span>
+          ))}
+        </div>
+      </div>
+      <span style={{ minWidth: 36 }}>{max.toFixed(0)}{unit}</span>
     </div>
   )
 }
@@ -142,37 +167,52 @@ function MapTooltip({ data, name, variable, pos, containerRef }) {
 
   return (
     <div
-      className="hidden md:block absolute pointer-events-none z-20 rounded-xl border border-slate-600 shadow-2xl text-xs"
-      style={{ background: '#1e293b', left: flipLeft ? pos.x - 210 : pos.x + 14, top: Math.max(8, pos.y - 20), minWidth: 200 }}
+      className="hidden md:block absolute pointer-events-none z-20 text-xs"
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border-strong)',
+        borderRadius: 'var(--r-lg)',
+        boxShadow: 'var(--shadow-pop)',
+        left: flipLeft ? pos.x - 216 : pos.x + 14,
+        top: Math.max(8, pos.y - 20),
+        minWidth: 200,
+      }}
     >
-      <div className="px-4 py-2 border-b border-slate-700 font-semibold flex items-center gap-2"
-        style={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
-        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: REGION_COLORS[name] }} />
-        <span className="text-slate-200">{name}</span>
+      <div style={{
+        padding: '8px 14px',
+        borderBottom: '1px solid var(--border)',
+        fontWeight: 600,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        color: 'var(--text)',
+      }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: REGION_COLORS[name], flexShrink: 0 }} />
+        {name}
       </div>
-      <div className="px-4 py-3 space-y-1.5">
+      <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 5 }}>
         {data.fase_enos && (
-          <Row label="Fase ENOS"
+          <TooltipRow label="Fase ENOS"
             value={<span style={{ color: ENOS_COLORS[data.fase_enos] }}>{data.fase_enos}</span>} />
         )}
-        <Row label={VARIABLE_LABEL[variable] ?? variable}
-          value={<span className="font-bold text-white">{data[variable]?.toFixed(1)} {unit}</span>} />
-        {variable !== 'precipitacion_mm' && <Row label="Precipitación" value={`${data.precipitacion_mm?.toFixed(1)} mm`} />}
-        {variable !== 'temp_media_c'     && <Row label="Temp. media"   value={`${data.temp_media_c?.toFixed(1)} °C`} />}
-        <Row label="Temp. máx" value={`${data.temp_max_c?.toFixed(1)} °C`} />
-        <Row label="Temp. mín" value={`${data.temp_min_c?.toFixed(1)} °C`} />
-        {variable !== 'humedad_pct' && <Row label="Humedad" value={`${data.humedad_pct?.toFixed(1)} %`} />}
-        <Row label="Viento" value={`${data.viento_kmh?.toFixed(1)} km/h`} />
+        <TooltipRow label={VARIABLE_LABEL[variable] ?? variable}
+          value={<strong style={{ color: 'var(--text)' }}>{data[variable]?.toFixed(1)} {unit}</strong>} />
+        {variable !== 'precipitacion_mm' && <TooltipRow label="Precipitación" value={`${data.precipitacion_mm?.toFixed(1)} mm`} />}
+        {variable !== 'temp_media_c'     && <TooltipRow label="Temp. media"   value={`${data.temp_media_c?.toFixed(1)} °C`} />}
+        <TooltipRow label="Temp. máx" value={`${data.temp_max_c?.toFixed(1)} °C`} />
+        <TooltipRow label="Temp. mín" value={`${data.temp_min_c?.toFixed(1)} °C`} />
+        {variable !== 'humedad_pct' && <TooltipRow label="Humedad" value={`${data.humedad_pct?.toFixed(1)} %`} />}
+        <TooltipRow label="Viento" value={`${data.viento_kmh?.toFixed(1)} km/h`} />
       </div>
     </div>
   )
 }
 
-function Row({ label, value }) {
+function TooltipRow({ label, value }) {
   return (
-    <div className="flex justify-between gap-4">
-      <span className="text-slate-400">{label}</span>
-      <span className="text-slate-200 font-medium">{value}</span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+      <span style={{ color: 'var(--text-3)' }}>{label}</span>
+      <span style={{ color: 'var(--text-2)', fontWeight: 500 }}>{value}</span>
     </div>
   )
 }
@@ -192,17 +232,14 @@ export default function CostaRicaMap({
 
   useEffect(() => {
     fetch(GEO_URL)
-      .then((r) => r.json())
-      .then((g) => setFeatures((g.features ?? []).map(normalizeFeatureWinding)))
+      .then(r => r.json())
+      .then(g => setFeatures((g.features ?? []).map(normalizeFeatureWinding)))
       .catch(console.error)
   }, [])
 
   const pathGen = useMemo(() => {
     if (!features.length) return null
-    const projection = geoMercator().fitExtent(MAP_EXTENT, {
-      type: 'FeatureCollection',
-      features,
-    })
+    const projection = geoMercator().fitExtent(MAP_EXTENT, { type: 'FeatureCollection', features })
     return geoPath(projection)
   }, [features])
 
@@ -217,7 +254,7 @@ export default function CostaRicaMap({
   )
 
   const { min, max } = useMemo(() => {
-    const vals = Object.values(mapData).map((d) => d[variable]).filter((v) => v != null && !isNaN(v))
+    const vals = Object.values(mapData).map(d => d[variable]).filter(v => v != null && !isNaN(v))
     if (!vals.length) return { min: 0, max: 0 }
     return { min: Math.min(...vals), max: Math.max(...vals) }
   }, [mapData, variable])
@@ -233,102 +270,73 @@ export default function CostaRicaMap({
     setTooltipPos(null)
   }, [])
 
-  const filterParts = []
-  if (selectedYear !== 'all') filterParts.push(selectedYear)
-  else filterParts.push('promedio 2020–2025')
-  if (selectedMonths.length < 12) filterParts.push(selectedMonths.map((m) => MES_NOMBRES[m]).join(', '))
-  if (source === 'daily' && (dayRange.from !== 1 || dayRange.to !== 31))
-    filterParts.push(`días ${dayRange.from}–${dayRange.to}`)
-
   return (
     <div>
-      <div className="flex items-start justify-between mb-1">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-200">
-            Mapa climático — {VARIABLE_LABEL[variable] ?? variable}
-          </h2>
-          <p className="text-xs text-slate-500">{filterParts.join(' · ')}</p>
-        </div>
-        <p className="hidden md:block text-xs text-slate-600 mt-1">Clic en una región → gráfico detallado</p>
-        <p className="md:hidden text-xs text-slate-500 mt-1">Toca una región → ver detalle</p>
-      </div>
-
-      <ColorLegend variable={variable} min={min} max={max} />
+      <ScaleBar variable={variable} min={min} max={max} />
 
       <div
         ref={containerRef}
-        className="relative mt-3 rounded-xl overflow-hidden border border-slate-700/70"
-        style={{ background: '#f8fafc' }}
+        style={{ position: 'relative', borderRadius: 'var(--r-md)', overflow: 'hidden', border: '1px solid var(--border)', background: '#f0f9ff' }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleContainerLeave}
       >
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          style={{ width: '100%', height: 'auto', display: 'block' }}
-        >
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
           <defs>
             <filter id="mapShadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="12" stdDeviation="10" floodColor="#0f172a" floodOpacity="0.18" />
+              <feDropShadow dx="0" dy="8" stdDeviation="8" floodColor="#0c0a09" floodOpacity="0.10" />
             </filter>
             <filter id="labelShadow" x="-30%" y="-60%" width="160%" height="220%">
-              <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#0f172a" floodOpacity="0.22" />
+              <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodColor="#0c0a09" floodOpacity="0.12" />
             </filter>
             <linearGradient id="regionSheen" x1="0" x2="1" y1="0" y2="1">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.34" />
-              <stop offset="52%" stopColor="#ffffff" stopOpacity="0.06" />
-              <stop offset="100%" stopColor="#0f172a" stopOpacity="0.12" />
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.28" />
+              <stop offset="52%" stopColor="#ffffff" stopOpacity="0.04" />
+              <stop offset="100%" stopColor="#0c0a09" stopOpacity="0.06" />
             </linearGradient>
             <radialGradient id="paperGlow" cx="42%" cy="36%" r="68%">
-              <stop offset="0%" stopColor="#ffffff" />
-              <stop offset="100%" stopColor="#e8eef6" />
+              <stop offset="0%" stopColor="#f0f9ff" />
+              <stop offset="100%" stopColor="#dbeafe" />
             </radialGradient>
           </defs>
 
           <rect width={W} height={H} fill="url(#paperGlow)" />
-          <path d="M0 382 C145 354 242 382 376 352 S617 335 800 366 L800 480 L0 480 Z" fill="#dbe7f3" opacity="0.36" />
-          <path d="M0 72 C116 96 222 76 342 96 S548 130 800 84" fill="none" stroke="#cbd5e1" strokeWidth="1" opacity="0.42" />
-          <path d="M0 116 C148 142 252 112 382 136 S594 168 800 122" fill="none" stroke="#d7dee8" strokeWidth="1" opacity="0.55" />
 
-          {pathGen && drawFeatures.map((feature) => (
+          {pathGen && drawFeatures.map(feature => (
             <path
               key={`${feature.properties?.name}-shadow`}
               d={pathGen(feature)}
               fill="none"
-              stroke="#9aa9bc"
-              strokeOpacity="0.72"
-              strokeWidth="20"
-              strokeLinecap="round"
+              stroke="#94a3b8"
+              strokeOpacity="0.4"
+              strokeWidth="16"
               strokeLinejoin="round"
               filter="url(#mapShadow)"
             />
           ))}
 
-          {pathGen && drawFeatures.map((feature) => {
+          {pathGen && drawFeatures.map(feature => {
             const name       = feature.properties?.name
             const data       = mapData[name]
             const value      = data?.[variable]
             const fillColor  = scaleColor(value, min, max, variable)
             const isHovered  = hovered === name
             const isSelected = selectedDetail === name
-            const rColor     = REGION_COLORS[name] ?? '#94a3b8'
-            const d          = pathGen(feature)
 
             return (
               <path
                 key={name}
-                d={d}
-                fill={data ? fillColor : '#1e293b'}
-                fillOpacity={isHovered ? 1 : 0.96}
-                stroke={isSelected ? '#020617' : isHovered ? '#020617' : '#172033'}
-                strokeOpacity={isSelected || isHovered ? 1 : 0.88}
-                strokeWidth={isSelected ? 3.2 : isHovered ? 2.6 : 1.8}
+                d={pathGen(feature)}
+                fill={data ? fillColor : '#e7e5e4'}
+                fillOpacity={isHovered ? 1 : 0.94}
+                stroke={isSelected ? 'var(--text)' : isHovered ? 'var(--text-2)' : 'var(--surface)'}
+                strokeWidth={isSelected ? 2.8 : isHovered ? 2.2 : 1.4}
                 strokeDasharray={isSelected ? '6 3' : undefined}
                 strokeLinejoin="round"
                 vectorEffect="non-scaling-stroke"
                 style={{
                   cursor: 'pointer',
-                  transition: 'fill-opacity 0.15s, stroke-opacity 0.15s',
-                  filter: isHovered || isSelected ? 'drop-shadow(0 3px 6px rgba(15,23,42,0.25))' : undefined,
+                  transition: 'fill-opacity 0.15s',
+                  filter: isHovered || isSelected ? 'drop-shadow(0 2px 4px rgba(12,10,9,0.18))' : undefined,
                 }}
                 onMouseEnter={() => setHovered(name)}
                 onMouseLeave={() => setHovered(null)}
@@ -337,35 +345,17 @@ export default function CostaRicaMap({
             )
           })}
 
-          {pathGen && drawFeatures.map((feature) => (
+          {pathGen && drawFeatures.map(feature => (
             <path
               key={`${feature.properties?.name}-sheen`}
               d={pathGen(feature)}
               fill="url(#regionSheen)"
-              stroke="#ffffff"
-              strokeOpacity="0.22"
-              strokeWidth="1"
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
+              stroke="none"
               pointerEvents="none"
             />
           ))}
 
-          {pathGen && drawFeatures.map((feature) => (
-            <path
-              key={`${feature.properties?.name}-outline`}
-              d={pathGen(feature)}
-              fill="none"
-              stroke="#111827"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-              pointerEvents="none"
-            />
-          ))}
-
-          {pathGen && drawFeatures.map((feature) => {
+          {pathGen && drawFeatures.map(feature => {
             const name = feature.properties?.name
             const [cx, cy] = pathGen.centroid(feature)
             const [dx, dy] = LABEL_OFFSETS[name] ?? [0, 0]
@@ -376,34 +366,26 @@ export default function CostaRicaMap({
             const valueText = formatMapValue(mapData[name], variable)
             const { width, height } = labelBoxSize(label, valueText)
             return (
-              <g
-                key={`${name}-label`}
-                pointerEvents="none"
-                opacity={isActive ? 1 : 0.92}
-                filter="url(#labelShadow)"
-              >
+              <g key={`${name}-label`} pointerEvents="none" filter="url(#labelShadow)">
                 <rect
-                  x={x - width / 2}
-                  y={y - height / 2}
-                  width={width}
-                  height={height}
-                  rx="7"
-                  fill={isActive ? '#ffffff' : 'rgba(255,255,255,0.82)'}
-                  stroke={isActive ? '#0f172a' : 'rgba(15,23,42,0.16)'}
-                  strokeWidth={isActive ? 1.4 : 0.8}
+                  x={x - width / 2} y={y - height / 2}
+                  width={width} height={height} rx="7"
+                  fill={isActive ? '#ffffff' : 'rgba(255,255,255,0.86)'}
+                  stroke={isActive ? '#0c0a09' : 'rgba(12,10,9,0.12)'}
+                  strokeWidth={isActive ? 1.2 : 0.6}
                 />
                 <circle
                   cx={x - width / 2 + 10}
                   cy={valueText ? y - 7 : y}
                   r="3"
-                  fill={REGION_COLORS[name] ?? '#64748b'}
+                  fill={REGION_COLORS[name] ?? '#78716c'}
                 />
                 <text
                   x={x + 4}
                   y={valueText ? y - 7 : y + 0.5}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fill="#111827"
+                  fill="#0c0a09"
                   fontSize={isActive ? 12.5 : 11.5}
                   fontWeight={isActive ? 700 : 600}
                 >
@@ -411,11 +393,10 @@ export default function CostaRicaMap({
                 </text>
                 {valueText && (
                   <text
-                    x={x}
-                    y={y + 10}
+                    x={x} y={y + 10}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    fill="#475569"
+                    fill="#57534e"
                     fontSize="9.5"
                     fontWeight="700"
                   >
@@ -425,7 +406,6 @@ export default function CostaRicaMap({
               </g>
             )
           })}
-
         </svg>
 
         <MapTooltip
@@ -437,31 +417,27 @@ export default function CostaRicaMap({
         />
 
         {Object.keys(mapData).length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-slate-500 text-sm">Sin datos para los filtros seleccionados</p>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <p style={{ color: 'var(--text-3)', fontSize: 13 }}>Sin datos para los filtros seleccionados</p>
           </div>
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1.5">
+      {/* Region legend */}
+      <div className="map-legend">
         {Object.entries(REGION_COLORS).map(([name, rColor]) => {
           const value = mapData[name]?.[variable]
           const unit  = VARIABLE_UNIT[variable] ?? ''
           return (
             <button
               key={name}
+              className="map-legend-item"
+              style={{ '--c': rColor, cursor: 'pointer', background: selectedDetail === name ? 'var(--surface-2)' : 'transparent', borderRadius: 6, padding: '4px 6px', width: '100%', textAlign: 'left', border: 'none' }}
               onClick={() => onRegionClick(name === selectedDetail ? null : name)}
-              className={`flex items-center gap-1.5 text-left px-2 py-1.5 rounded-lg transition-colors text-xs ${
-                selectedDetail === name ? 'bg-slate-700 ring-1 ring-slate-500' : 'hover:bg-slate-700/60'
-              }`}
             >
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: rColor }} />
-              <span className="text-slate-300 truncate">{name}</span>
-              {value != null && (
-                <span className="ml-auto text-slate-400 tabular-nums flex-shrink-0 font-medium">
-                  {value.toFixed(1)}{unit}
-                </span>
-              )}
+              <span className="dot" />
+              <span className="lbl" style={{ fontSize: 11.5 }}>{name}</span>
+              {value != null && <span className="val">{value.toFixed(1)}{unit}</span>}
             </button>
           )
         })}

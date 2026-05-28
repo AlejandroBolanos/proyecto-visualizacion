@@ -1,54 +1,22 @@
 import { useState } from 'react'
+import Icon from './Icon'
 
 export const REGION_COLORS = {
-  'Pacífico Norte':   '#f97316',
-  'Pacífico Central': '#eab308',
-  'Pacífico Sur':     '#ef4444',
-  'Valle Central':    '#22c55e',
-  'Zona Norte':       '#3b82f6',
-  'Caribe Norte':     '#a855f7',
-  'Caribe Sur':       '#06b6d4',
+  'Pacífico Norte':   '#d97546',
+  'Pacífico Central': '#c8941f',
+  'Pacífico Sur':     '#c8403c',
+  'Valle Central':    '#2f9659',
+  'Zona Norte':       '#2563eb',
+  'Caribe Norte':     '#7c5cd6',
+  'Caribe Sur':       '#0ea5b5',
 }
 
 const ALL_REGIONS = Object.keys(REGION_COLORS)
 
 const VARIABLES = [
-  { value: 'precipitacion_mm', label: 'Precipitación (mm)' },
-  { value: 'temp_media_c',     label: 'Temperatura media (°C)' },
-  { value: 'humedad_pct',      label: 'Humedad (%)' },
-]
-
-const CHART_TYPES = [
-  {
-    value: 'bar', label: 'Barras',
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <rect x="2" y="10" width="4" height="8" rx="1" />
-        <rect x="8" y="6"  width="4" height="12" rx="1" />
-        <rect x="14" y="3" width="4" height="15" rx="1" />
-      </svg>
-    ),
-  },
-  {
-    value: 'area', label: 'Área',
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path d="M1 17 L5 9 L9 12 L13 5 L17 8 L19 6 L19 17 Z" />
-      </svg>
-    ),
-  },
-  {
-    value: 'line', label: 'Línea',
-    icon: (
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-        <polyline points="1,16 5,8 9,11 13,4 17,7 19,5" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="5" cy="8" r="2" fill="currentColor" stroke="none" />
-        <circle cx="9" cy="11" r="2" fill="currentColor" stroke="none" />
-        <circle cx="13" cy="4" r="2" fill="currentColor" stroke="none" />
-        <circle cx="17" cy="7" r="2" fill="currentColor" stroke="none" />
-      </svg>
-    ),
-  },
+  { value: 'precipitacion_mm', label: 'Precipitación', unit: 'mm',   icon: 'rain' },
+  { value: 'temp_media_c',     label: 'Temperatura',   unit: '°C',   icon: 'temp' },
+  { value: 'humedad_pct',      label: 'Humedad rel.',  unit: '%',    icon: 'drop' },
 ]
 
 const MONTHS = [
@@ -58,9 +26,8 @@ const MONTHS = [
   { n: 10, label: 'Oct' }, { n: 11, label: 'Nov' }, { n: 12, label: 'Dic' },
 ]
 
-const ALL_MONTHS = MONTHS.map((m) => m.n)
+const ALL_MONTHS = MONTHS.map(m => m.n)
 
-// Centroides aproximados de cada zona climática de Costa Rica
 const REGION_CENTROIDS = {
   'Pacífico Norte':   { lat: 10.6, lng: -85.4 },
   'Pacífico Central': { lat: 9.8,  lng: -84.8 },
@@ -82,29 +49,21 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 }
 
 export default function RegionFilter({
-  // data source
   dataSource, onDataSourceChange,
-  // chart type
-  chartType, onChartTypeChange,
-  // variable
-  variable, onVariableChange,
-  // year
-  years, selectedYear, onYearChange,
-  // month filter
-  selectedMonths, onMonthsChange,
-  // day range (daily only)
-  dayRange, onDayRangeChange,
-  // regions
-  selectedRegions, onToggleRegion,
-  // detail region
-  selectedDetail, onDetailChange,
-  // geolocation callback
+  chartType,  onChartTypeChange,
+  variable,   onVariableChange,
+  years,      selectedYear,    onYearChange,
+  selectedMonths,              onMonthsChange,
+  dayRange,                    onDayRangeChange,
+  selectedRegions,             onToggleRegion,
+  selectedDetail,              onDetailChange,
   onNearestRegions,
+  onClose,
 }) {
   const allRegions = selectedRegions.length === ALL_REGIONS.length
   const allMonths  = selectedMonths.length === 12
 
-  const [geoStatus, setGeoStatus] = useState('idle') // 'idle' | 'loading' | 'error'
+  const [geoStatus, setGeoStatus] = useState('idle')
 
   function toggleAllRegions() {
     onToggleRegion(null, allRegions ? 'none' : 'all')
@@ -113,20 +72,10 @@ export default function RegionFilter({
   function toggleMonth(n) {
     if (selectedMonths.includes(n)) {
       if (selectedMonths.length === 1) return
-      onMonthsChange(selectedMonths.filter((m) => m !== n))
+      onMonthsChange(selectedMonths.filter(m => m !== n))
     } else {
       onMonthsChange([...selectedMonths, n].sort((a, b) => a - b))
     }
-  }
-
-  function setDayFrom(val) {
-    const n = Math.max(1, Math.min(dayRange.to, Number(val) || 1))
-    onDayRangeChange({ ...dayRange, from: n })
-  }
-
-  function setDayTo(val) {
-    const n = Math.min(31, Math.max(dayRange.from, Number(val) || 31))
-    onDayRangeChange({ ...dayRange, to: n })
   }
 
   function handleGeolocate() {
@@ -138,7 +87,7 @@ export default function RegionFilter({
           .map(([region, c]) => ({ region, dist: haversineKm(lat, lng, c.lat, c.lng) }))
           .sort((a, b) => a.dist - b.dist)
           .slice(0, 3)
-          .map((d) => d.region)
+          .map(d => d.region)
         onNearestRegions(nearest)
         setGeoStatus('idle')
       },
@@ -148,266 +97,206 @@ export default function RegionFilter({
   }
 
   return (
-    <div className="space-y-5">
-
-      {/* ── Fuente ── */}
-      <Section label="Tipo de vista">
-        <div className="flex rounded-lg overflow-hidden border border-slate-600">
-          {[{ value: 'monthly', label: 'Mensual' }, { value: 'daily', label: 'Diaria' }].map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => onDataSourceChange(opt.value)}
-              className={`flex-1 py-2 text-xs font-medium transition-colors ${
-                dataSource === opt.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-700 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      {/* ── Tipo de gráfico ── */}
-      <Section label="Tipo de gráfico">
-        <div className="flex gap-1.5">
-          {CHART_TYPES.map((ct) => (
-            <button
-              key={ct.value}
-              onClick={() => onChartTypeChange(ct.value)}
-              title={ct.label}
-              className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border text-xs font-medium transition-colors ${
-                chartType === ct.value
-                  ? 'border-blue-500 bg-blue-900/40 text-blue-300'
-                  : 'border-slate-600 bg-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
-              }`}
-            >
-              {ct.icon}
-              {ct.label}
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      {/* ── Variable ── */}
-      <Section label="Variables principales">
-        <div className="space-y-1">
-          {VARIABLES.map((v) => (
-            <button
-              key={v.value}
-              onClick={() => onVariableChange(v.value)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                variable === v.value
-                  ? 'bg-blue-600 text-white font-medium'
-                  : 'text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              {v.label}
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      {/* ── Año ── */}
-      <Section label="Año">
-        <select
-          value={selectedYear}
-          onChange={(e) => onYearChange(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-          className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">Todos los años (promedio)</option>
-          {years.map((y) => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
-      </Section>
-
-      {/* ── Meses ── */}
-      <Section
-        label="Meses"
-        action={
+    <>
+      {/* Brand header */}
+      <div className="brand">
+        <div className="brand-title">
+          <span>Clima CR · 2020–2025</span>
           <button
-            onClick={() => onMonthsChange(allMonths ? [selectedMonths[0]] : [...ALL_MONTHS])}
-            className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+            className="btn btn-ghost btn-icon sidebar-close-btn"
+            style={{ marginLeft: 'auto' }}
+            onClick={onClose}
+            aria-label="Cerrar"
           >
-            {allMonths ? 'Limpiar' : 'Todos'}
+            <Icon name="close" />
           </button>
-        }
-      >
-        <div className="grid grid-cols-4 gap-1">
-          {MONTHS.map(({ n, label }) => {
-            const active = selectedMonths.includes(n)
-            return (
+        </div>
+        <div className="brand-sub">Análisis multivariado</div>
+      </div>
+
+      {/* Scrollable body */}
+      <div className="sidebar-body">
+
+        {/* Frecuencia */}
+        <div className="fs">
+          <div className="fs-label">Frecuencia</div>
+          <div className="seg">
+            <button
+              data-active={dataSource === 'monthly'}
+              onClick={() => onDataSourceChange('monthly')}
+            >Mensual</button>
+            <button
+              data-active={dataSource === 'daily'}
+              onClick={() => onDataSourceChange('daily')}
+            >Diaria</button>
+          </div>
+        </div>
+
+        {/* Tipo de gráfico */}
+        <div className="fs">
+          <div className="fs-label">Tipo de gráfico</div>
+          <div className="chart-type">
+            <button data-active={chartType === 'bar'}  onClick={() => onChartTypeChange('bar')}>
+              <Icon name="bar" size={16} /><span>Barras</span>
+            </button>
+            <button data-active={chartType === 'area'} onClick={() => onChartTypeChange('area')}>
+              <Icon name="area" size={16} /><span>Área</span>
+            </button>
+            <button data-active={chartType === 'line'} onClick={() => onChartTypeChange('line')}>
+              <Icon name="line" size={16} /><span>Línea</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Variable principal */}
+        <div className="fs">
+          <div className="fs-label">Variable principal</div>
+          <div className="var-list">
+            {VARIABLES.map(v => (
+              <button
+                key={v.value}
+                className="var-item"
+                data-active={variable === v.value}
+                onClick={() => onVariableChange(v.value)}
+              >
+                <span className="var-glyph">
+                  <Icon name={v.icon} size={12} />
+                </span>
+                <span>{v.label}</span>
+                <span className="var-unit">{v.unit}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Año */}
+        <div className="fs">
+          <div className="fs-label">Año</div>
+          <div className="field-select">
+            <select
+              value={selectedYear}
+              onChange={e => onYearChange(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            >
+              <option value="all">Todos los años (promedio)</option>
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Meses */}
+        <div className="fs">
+          <div className="fs-label">
+            <span>Meses</span>
+            <button
+              className="fs-action"
+              onClick={() => onMonthsChange(allMonths ? [selectedMonths[0] ?? 1] : [...ALL_MONTHS])}
+            >
+              {allMonths ? 'Ninguno' : 'Todos'}
+            </button>
+          </div>
+          <div className="months">
+            {MONTHS.map(({ n, label }) => (
               <button
                 key={n}
+                className="month-chip"
+                data-active={selectedMonths.includes(n)}
                 onClick={() => toggleMonth(n)}
-                className={`py-1.5 rounded text-xs font-medium transition-colors ${
-                  active
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-700 text-slate-400 hover:bg-slate-600 hover:text-slate-200'
-                }`}
-              >
-                {label}
-              </button>
-            )
-          })}
-        </div>
-      </Section>
-
-      {/* ── Rango de días (solo modo diario) ── */}
-      {dataSource === 'daily' && (
-        <Section label="Rango de días">
-          <div className="space-y-3">
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs text-slate-400">Día inicio</label>
-                <span className="text-xs font-semibold text-blue-400 tabular-nums w-12 text-right">Día {dayRange.from}</span>
-              </div>
-              <input
-                type="range" min={1} max={dayRange.to} value={dayRange.from}
-                onChange={(e) => setDayFrom(e.target.value)}
-                className="w-full accent-blue-500 cursor-pointer"
-              />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs text-slate-400">Día fin</label>
-                <span className="text-xs font-semibold text-blue-400 tabular-nums w-12 text-right">Día {dayRange.to}</span>
-              </div>
-              <input
-                type="range" min={dayRange.from} max={31} value={dayRange.to}
-                onChange={(e) => setDayTo(e.target.value)}
-                className="w-full accent-blue-500 cursor-pointer"
-              />
-            </div>
-            <p className="text-xs text-slate-500 text-center">
-              {dayRange.from === dayRange.to
-                ? `Día ${dayRange.from} de cada mes · promedio 2020–2025`
-                : dayRange.from === 1 && dayRange.to === 31
-                  ? 'Todos los días del mes'
-                  : `Días ${dayRange.from} al ${dayRange.to} de cada mes`}
-            </p>
-            {(dayRange.from !== 1 || dayRange.to !== 31) && (
-              <button
-                onClick={() => onDayRangeChange({ from: 1, to: 31 })}
-                className="w-full text-xs text-slate-500 hover:text-blue-400 transition-colors"
-              >
-                Restablecer rango
-              </button>
-            )}
+              >{label}</button>
+            ))}
           </div>
-        </Section>
-      )}
-
-      {/* ── Regiones ── */}
-      <Section
-        label="Regiones"
-        action={
-          <button
-            onClick={toggleAllRegions}
-            className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-          >
-            {allRegions ? 'Ninguna' : 'Todas'}
-          </button>
-        }
-      >
-        <div className="space-y-0.5">
-          {ALL_REGIONS.map((region) => {
-            const checked = selectedRegions.includes(region)
-            const color = REGION_COLORS[region]
-            return (
-              <label
-                key={region}
-                className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors group"
-              >
-                <input
-                  type="checkbox" checked={checked}
-                  onChange={() => onToggleRegion(region)}
-                  className="sr-only"
-                />
-                <span
-                  className="w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all"
-                  style={{ borderColor: color, backgroundColor: checked ? color : 'transparent' }}
-                >
-                  {checked && (
-                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
-                      <path d="M2 5l2.5 2.5L8 3" stroke="currentColor"
-                        strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </span>
-                <span className="text-sm text-slate-300 group-hover:text-slate-100 transition-colors">
-                  {region}
-                </span>
-                <span className="ml-auto w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: color }} />
-              </label>
-            )
-          })}
         </div>
 
-        {/* Botón de geolocalización */}
-        <div className="mt-2 space-y-1">
+        {/* Rango de días — solo modo diario */}
+        {dataSource === 'daily' && (
+          <div className="fs">
+            <div className="fs-label">Rango de días</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 8 }}>
+              <div className="range-row">
+                <span style={{ minWidth: 24 }}>{dayRange.from}</span>
+                <input
+                  type="range" className="range"
+                  min={1} max={dayRange.to} value={dayRange.from}
+                  onChange={e => onDayRangeChange({ ...dayRange, from: Math.min(Number(e.target.value), dayRange.to) })}
+                />
+              </div>
+              <div className="range-row">
+                <span style={{ minWidth: 24 }}>{dayRange.to}</span>
+                <input
+                  type="range" className="range"
+                  min={dayRange.from} max={31} value={dayRange.to}
+                  onChange={e => onDayRangeChange({ ...dayRange, to: Math.max(Number(e.target.value), dayRange.from) })}
+                />
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+                Día {dayRange.from} → {dayRange.to} de cada mes
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Regiones */}
+        <div className="fs">
+          <div className="fs-label">
+            <span>Regiones</span>
+            <button className="fs-action" onClick={toggleAllRegions}>
+              {allRegions ? 'Ninguna' : 'Todas'}
+            </button>
+          </div>
+          <div className="region-list">
+            {ALL_REGIONS.map(region => (
+              <div
+                key={region}
+                className="region-row"
+                data-checked={selectedRegions.includes(region)}
+                onClick={() => onToggleRegion(region)}
+                style={{ '--c': REGION_COLORS[region] }}
+              >
+                <span className="region-check" />
+                <span className="region-dot" />
+                <span className="region-name">{region}</span>
+              </div>
+            ))}
+          </div>
           <button
+            className="btn btn-block"
+            style={{ marginTop: 10 }}
             onClick={handleGeolocate}
             disabled={geoStatus === 'loading'}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs border border-slate-600 text-slate-400 hover:border-blue-500 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {geoStatus === 'loading' ? (
               <>
-                <span className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin" />
+                <span style={{ width: 12, height: 12, border: '1.5px solid var(--text-2)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block' }} />
                 Localizando…
               </>
             ) : (
-              <>
-                <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0">
-                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                </svg>
-                Seleccionar 3 zonas cercanas
-              </>
+              <><Icon name="loc" /> Seleccionar 3 zonas cercanas</>
             )}
           </button>
           {geoStatus === 'error' && (
-            <p className="text-xs text-red-400 text-center">
+            <p style={{ fontSize: 11, color: '#dc2626', marginTop: 4, textAlign: 'center' }}>
               No se pudo obtener la ubicación
             </p>
           )}
         </div>
-      </Section>
 
-      {/* ── Detalle ── */}
-      <Section label="Detalle de región">
-        <select
-          value={selectedDetail ?? ''}
-          onChange={(e) => onDetailChange(e.target.value || null)}
-          className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">— Seleccionar región —</option>
-          {ALL_REGIONS.map((r) => (
-            <option key={r} value={r}>{r}</option>
-          ))}
-        </select>
-        {selectedDetail && (
-          <p className="mt-1 text-xs text-slate-500">
-            Vista combinada: precipitación + temperatura
-          </p>
-        )}
-      </Section>
+        {/* Detalle de región */}
+        <div className="fs">
+          <div className="fs-label">Detalle de región</div>
+          <div className="field-select">
+            <select
+              value={selectedDetail ?? ''}
+              onChange={e => onDetailChange(e.target.value || null)}
+            >
+              <option value="">— Seleccionar región —</option>
+              {ALL_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+          <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-3)' }}>
+            Vista combinada · precipitación + temperatura
+          </div>
+        </div>
 
-    </div>
-  )
-}
-
-/** Small wrapper for sidebar sections */
-function Section({ label, action, children }) {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</h3>
-        {action}
       </div>
-      {children}
-    </div>
+    </>
   )
 }

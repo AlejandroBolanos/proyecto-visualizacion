@@ -10,9 +10,9 @@ import TooltipCustom from './TooltipCustom'
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ENOS_FILL = {
-  'El Niño': '#f97316',
-  'La Niña': '#3b82f6',
-  'Neutro':  '#6b7280',
+  'El Niño': '#fff7ed',
+  'La Niña': '#eff6ff',
+  'Neutro':  null,
 }
 
 export const MES_NOMBRES = {
@@ -125,10 +125,14 @@ function buildDetailData(rawRecords, source, dayRange, region, selectedYear, sel
 // ─── Shared SVG components ────────────────────────────────────────────────────
 
 function EnosAreas({ data }) {
-  return data.map((d) => (
-    <ReferenceArea key={`enos-${d.mes}`} x1={d.mes_nombre} x2={d.mes_nombre}
-      fill={ENOS_FILL[d.fase_enos] ?? '#6b7280'} fillOpacity={0.08} ifOverflow="visible" />
-  ))
+  return data.flatMap((d) => {
+    const fill = ENOS_FILL[d.fase_enos]
+    if (!fill) return []
+    return [
+      <ReferenceArea key={`enos-${d.mes}`} x1={d.mes_nombre} x2={d.mes_nombre}
+        fill={fill} fillOpacity={1} ifOverflow="visible" />
+    ]
+  })
 }
 
 function subtitleFromFilters(selectedYear, selectedMonths, source, dayRange) {
@@ -175,44 +179,36 @@ export function OverviewChart({ rawRecords, source, dayRange, selectedRegions, s
           <LabelList dataKey={region} position="top" content={({ x, y, width, value }) => {
             if (!value || value <= 50) return null
             return <text x={(x ?? 0) + (width ?? 0) / 2} y={(y ?? 0) - 4}
-              textAnchor="middle" fill="#94a3b8" fontSize={9}>{Number(value).toFixed(0)}</text>
+              textAnchor="middle" fill="var(--text-4)" fontSize={9}>{Number(value).toFixed(0)}</text>
           }} />
         </Bar>
       )
     })
   }
 
+  const tickStyle = { fill: 'var(--text-3)', fontSize: 10.5, fontFamily: 'var(--font-mono)' }
+
   return (
-    <div>
-      <h2 className="text-lg font-semibold text-slate-200 mb-0.5">
-        Vista general — {VARIABLE_LABEL[variable] ?? variable}
-      </h2>
-      {subtitle && <p className="text-xs text-slate-500 mb-3">{subtitle}</p>}
-      {!subtitle && <div className="mb-3" />}
-      <div className="chart-fade" key={`${chartType}-${source}-${selectedMonths.join()}-${dayRange.from}-${dayRange.to}`}>
-        <div className="h-56 sm:h-72 md:h-[360px]">
+    <div className="chart-fade" key={`${chartType}-${source}-${selectedMonths.join()}-${dayRange.from}-${dayRange.to}`}>
+      <div className="h-56 sm:h-72 md:h-[360px]">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 16, right: 16, bottom: 0, left: 8 }}>
-            {/* Inline defs so Recharts renders gradients into the SVG */}
+          <ComposedChart data={chartData} margin={{ top: 18, right: 24, bottom: 4, left: 44 }}>
             <defs>
               {selectedRegions.map((r) => (
                 <linearGradient key={r} id={gradId(r)} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={REGION_COLORS[r]} stopOpacity={0.45} />
-                  <stop offset="95%" stopColor={REGION_COLORS[r]} stopOpacity={0.04} />
+                  <stop offset="5%"  stopColor={REGION_COLORS[r]} stopOpacity={0.30} />
+                  <stop offset="95%" stopColor={REGION_COLORS[r]} stopOpacity={0.03} />
                 </linearGradient>
               ))}
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+            <CartesianGrid strokeDasharray="2 4" stroke="var(--border)" vertical={false} />
             <EnosAreas data={chartData} />
-            <XAxis dataKey="mes_nombre" tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={{ stroke: '#475569' }} tickLine={false} />
-            <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} width={50} />
-            <Tooltip content={(props) => <TooltipCustom {...props} mode="overview" variable={variable} />} cursor={{ fill: 'rgba(148,163,184,0.06)' }} />
-            <Legend wrapperStyle={{ paddingTop: 12, fontSize: 12 }}
-              formatter={(v) => <span style={{ color: REGION_COLORS[v] ?? '#94a3b8' }}>{v}</span>} />
+            <XAxis dataKey="mes_nombre" tick={tickStyle} axisLine={false} tickLine={false} />
+            <YAxis tick={tickStyle} axisLine={false} tickLine={false} width={44} />
+            <Tooltip content={(props) => <TooltipCustom {...props} mode="overview" variable={variable} />} cursor={{ fill: 'rgba(120,113,108,0.04)' }} />
             {renderSeries()}
           </ComposedChart>
         </ResponsiveContainer>
-        </div>
       </div>
     </div>
   )
@@ -246,37 +242,33 @@ export function DetailChart({ rawRecords, source, dayRange, region, selectedYear
       fill={color} fillOpacity={0.75} radius={[3, 3, 0, 0]} maxBarSize={36} />
   }
 
+  const tickStyle = { fill: 'var(--text-3)', fontSize: 10.5, fontFamily: 'var(--font-mono)' }
+  const tempColor = '#292524'
+
   return (
-    <div>
-      <h2 className="text-lg font-semibold text-slate-200 mb-0.5">
-        Detalle — <span style={{ color }}>{region}</span>
-      </h2>
-      <p className="text-xs text-slate-500 mb-4">{subtitle}</p>
-      <div className="chart-fade" key={`${chartType}-${source}-${selectedMonths.join()}-${dayRange.from}-${dayRange.to}`}>
-        <div className="h-52 sm:h-[280px] md:h-[340px]">
+    <div className="chart-fade" key={`${chartType}-${source}-${selectedMonths.join()}-${dayRange.from}-${dayRange.to}`}>
+      <div className="h-52 sm:h-[280px] md:h-[340px]">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 0, left: 4 }}>
+          <ComposedChart data={chartData} margin={{ top: 18, right: 50, bottom: 4, left: 50 }}>
             <defs>
               <linearGradient id={gId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor={color} stopOpacity={0.45} />
-                <stop offset="95%" stopColor={color} stopOpacity={0.04} />
+                <stop offset="5%"  stopColor={color} stopOpacity={0.30} />
+                <stop offset="95%" stopColor={color} stopOpacity={0.03} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+            <CartesianGrid strokeDasharray="2 4" stroke="var(--border)" vertical={false} />
             <EnosAreas data={chartData} />
-            <XAxis dataKey="mes_nombre" tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={{ stroke: '#475569' }} tickLine={false} />
-            <YAxis yAxisId="prec" orientation="left" tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} width={50}
-              label={{ value: 'mm', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 11, dy: 20 }} />
-            <YAxis yAxisId="temp" orientation="right" tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} width={40}
-              label={{ value: '°C', position: 'insideRight', fill: '#64748b', fontSize: 11, dy: -10 }} />
-            <Tooltip content={<TooltipCustom />} cursor={{ fill: 'rgba(148,163,184,0.06)' }} />
-            <Legend wrapperStyle={{ paddingTop: 12, fontSize: 12, color: '#94a3b8' }} />
+            <XAxis dataKey="mes_nombre" tick={tickStyle} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="prec" orientation="left" tick={tickStyle} axisLine={false} tickLine={false} width={44}
+              label={{ value: 'mm', angle: -90, position: 'insideLeft', fill: 'var(--text-3)', fontSize: 10, fontFamily: 'var(--font-mono)', dy: 16 }} />
+            <YAxis yAxisId="temp" orientation="right" tick={tickStyle} axisLine={false} tickLine={false} width={44}
+              label={{ value: '°C', position: 'insideRight', fill: 'var(--text-3)', fontSize: 10, fontFamily: 'var(--font-mono)', dy: -12 }} />
+            <Tooltip content={<TooltipCustom />} cursor={{ fill: 'rgba(120,113,108,0.04)' }} />
             {renderPrecip()}
             <Line yAxisId="temp" type="monotone" dataKey="temp_media_c" name="Temp. media (°C)"
-              stroke="#f8fafc" strokeWidth={2} dot={{ r: 3, fill: '#f8fafc', strokeWidth: 0 }} activeDot={{ r: 5 }} />
+              stroke={tempColor} strokeWidth={2} dot={{ r: 3, fill: tempColor, strokeWidth: 0 }} activeDot={{ r: 5 }} />
           </ComposedChart>
         </ResponsiveContainer>
-        </div>
       </div>
     </div>
   )
