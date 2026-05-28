@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useClimateData } from './hooks/useClimateData'
 import RegionFilter, { REGION_COLORS } from './components/RegionFilter'
 import EnosLegend from './components/EnosLegend'
@@ -21,7 +21,19 @@ export default function App() {
   const [viewMode,        setViewMode]        = useState('charts')
   const [sidebarOpen,     setSidebarOpen]     = useState(false)
 
+  const detailRef = useRef(null)
+
   const { rawRecords, loading, error, years } = useClimateData(dataSource)
+
+  // Auto-scroll al gráfico detallado en móvil al seleccionar una región
+  useEffect(() => {
+    if (!detailRegion) return
+    if (window.innerWidth >= 768) return
+    const timer = setTimeout(() => {
+      detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [detailRegion])
 
   function handleToggleRegion(region, mode) {
     if (mode === 'all')  { setSelectedRegions([...ALL_REGIONS]); return }
@@ -202,7 +214,7 @@ export default function App() {
                     </div>
 
                     {detailRegion ? (
-                      <div className="rounded-xl px-3 sm:px-5 py-4 sm:py-5 border border-slate-700/60" style={{ background: '#1e293b' }}>
+                      <div ref={detailRef} className="rounded-xl px-3 sm:px-5 py-4 sm:py-5 border border-slate-700/60" style={{ background: '#1e293b' }}>
                         <DetailChart
                           rawRecords={rawRecords}
                           source={dataSource}
@@ -238,7 +250,7 @@ export default function App() {
                     </div>
 
                     {detailRegion ? (
-                      <div className="rounded-xl px-3 sm:px-5 py-4 sm:py-5 border border-slate-700/60" style={{ background: '#1e293b' }}>
+                      <div ref={detailRef} className="rounded-xl px-3 sm:px-5 py-4 sm:py-5 border border-slate-700/60" style={{ background: '#1e293b' }}>
                         <DetailChart
                           rawRecords={rawRecords}
                           source={dataSource}

@@ -142,7 +142,7 @@ function MapTooltip({ data, name, variable, pos, containerRef }) {
 
   return (
     <div
-      className="absolute pointer-events-none z-20 rounded-xl border border-slate-600 shadow-2xl text-xs"
+      className="hidden md:block absolute pointer-events-none z-20 rounded-xl border border-slate-600 shadow-2xl text-xs"
       style={{ background: '#1e293b', left: flipLeft ? pos.x - 210 : pos.x + 14, top: Math.max(8, pos.y - 20), minWidth: 200 }}
     >
       <div className="px-4 py-2 border-b border-slate-700 font-semibold flex items-center gap-2"
@@ -249,7 +249,8 @@ export default function CostaRicaMap({
           </h2>
           <p className="text-xs text-slate-500">{filterParts.join(' · ')}</p>
         </div>
-        <p className="text-xs text-slate-600 mt-1">Clic en una región → gráfico detallado</p>
+        <p className="hidden md:block text-xs text-slate-600 mt-1">Clic en una región → gráfico detallado</p>
+        <p className="md:hidden text-xs text-slate-500 mt-1">Toca una región → ver detalle</p>
       </div>
 
       <ColorLegend variable={variable} min={min} max={max} />
@@ -442,7 +443,7 @@ export default function CostaRicaMap({
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-4 gap-x-3 gap-y-1.5">
+      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1.5">
         {Object.entries(REGION_COLORS).map(([name, rColor]) => {
           const value = mapData[name]?.[variable]
           const unit  = VARIABLE_UNIT[variable] ?? ''

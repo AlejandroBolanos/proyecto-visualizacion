@@ -258,31 +258,27 @@ export default function RegionFilter({
       {/* ── Rango de días (solo modo diario) ── */}
       {dataSource === 'daily' && (
         <Section label="Rango de días">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-slate-400 w-16 flex-shrink-0">Día inicio</label>
+          <div className="space-y-3">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs text-slate-400">Día inicio</label>
+                <span className="text-xs font-semibold text-blue-400 tabular-nums w-12 text-right">Día {dayRange.from}</span>
+              </div>
               <input
-                type="number" min={1} max={dayRange.to} value={dayRange.from}
+                type="range" min={1} max={dayRange.to} value={dayRange.from}
                 onChange={(e) => setDayFrom(e.target.value)}
-                className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-slate-200 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full accent-blue-500 cursor-pointer"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-slate-400 w-16 flex-shrink-0">Día fin</label>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs text-slate-400">Día fin</label>
+                <span className="text-xs font-semibold text-blue-400 tabular-nums w-12 text-right">Día {dayRange.to}</span>
+              </div>
               <input
-                type="number" min={dayRange.from} max={31} value={dayRange.to}
+                type="range" min={dayRange.from} max={31} value={dayRange.to}
                 onChange={(e) => setDayTo(e.target.value)}
-                className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-slate-200 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            {/* Visual range bar */}
-            <div className="relative h-1.5 bg-slate-700 rounded-full mt-1">
-              <div
-                className="absolute h-1.5 bg-blue-500 rounded-full"
-                style={{
-                  left:  `${((dayRange.from - 1) / 30) * 100}%`,
-                  right: `${((31 - dayRange.to)  / 30) * 100}%`,
-                }}
+                className="w-full accent-blue-500 cursor-pointer"
               />
             </div>
             <p className="text-xs text-slate-500 text-center">

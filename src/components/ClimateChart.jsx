@@ -190,7 +190,8 @@ export function OverviewChart({ rawRecords, source, dayRange, selectedRegions, s
       {subtitle && <p className="text-xs text-slate-500 mb-3">{subtitle}</p>}
       {!subtitle && <div className="mb-3" />}
       <div className="chart-fade" key={`${chartType}-${source}-${selectedMonths.join()}-${dayRange.from}-${dayRange.to}`}>
-        <ResponsiveContainer width="100%" height={360}>
+        <div className="h-56 sm:h-72 md:h-[360px]">
+        <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 16, right: 16, bottom: 0, left: 8 }}>
             {/* Inline defs so Recharts renders gradients into the SVG */}
             <defs>
@@ -211,6 +212,7 @@ export function OverviewChart({ rawRecords, source, dayRange, selectedRegions, s
             {renderSeries()}
           </ComposedChart>
         </ResponsiveContainer>
+        </div>
       </div>
     </div>
   )
@@ -251,8 +253,9 @@ export function DetailChart({ rawRecords, source, dayRange, region, selectedYear
       </h2>
       <p className="text-xs text-slate-500 mb-4">{subtitle}</p>
       <div className="chart-fade" key={`${chartType}-${source}-${selectedMonths.join()}-${dayRange.from}-${dayRange.to}`}>
-        <ResponsiveContainer width="100%" height={340}>
-          <ComposedChart data={chartData} margin={{ top: 8, right: 48, bottom: 0, left: 8 }}>
+        <div className="h-52 sm:h-[280px] md:h-[340px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 0, left: 4 }}>
             <defs>
               <linearGradient id={gId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%"  stopColor={color} stopOpacity={0.45} />
@@ -273,6 +276,7 @@ export function DetailChart({ rawRecords, source, dayRange, region, selectedYear
               stroke="#f8fafc" strokeWidth={2} dot={{ r: 3, fill: '#f8fafc', strokeWidth: 0 }} activeDot={{ r: 5 }} />
           </ComposedChart>
         </ResponsiveContainer>
+        </div>
       </div>
     </div>
   )
