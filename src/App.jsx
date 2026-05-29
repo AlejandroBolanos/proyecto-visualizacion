@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useClimateData } from './hooks/useClimateData'
-import RegionFilter, { REGION_COLORS } from './components/RegionFilter'
+import RegionFilter, { REGION_COLORS, REGION_CENTROIDS, haversineKm } from './components/RegionFilter'
 import { OverviewChart, DetailChart } from './components/ClimateChart'
 import CostaRicaMap from './components/CostaRicaMap'
 import Icon from './components/Icon'
@@ -24,14 +24,13 @@ const ENOS_LABELS = { nino: 'El Niño', nina: 'La Niña', neutral: 'Neutro' }
 
 export default function App() {
   const now = new Date()
-
   const [dataSource,      setDataSource]      = useState('monthly')
   const [chartType,       setChartType]       = useState('bar')
   const [selectedRegions, setSelectedRegions] = useState([...ALL_REGIONS])
   const [selectedYear,    setSelectedYear]    = useState('all')
   const [variable,        setVariable]        = useState('precipitacion_mm')
   const [detailRegion,    setDetailRegion]    = useState(null)
-  const [selectedMonths,  setSelectedMonths]  = useState([now.getMonth() + 1])
+  const [selectedMonths,  setSelectedMonths]  = useState([ now.getMonth() + 1, now.getMonth() + 2])
   const [dayRange,        setDayRange]        = useState({ from: 1, to: 31 })
   const [viewMode,        setViewMode]        = useState('charts')
   const [sidebarOpen,     setSidebarOpen]     = useState(false)
@@ -99,6 +98,23 @@ export default function App() {
 
     return { avg, max, min, bestRegion, dominantPhase }
   }, [rawRecords, selectedYear, effectiveMonths, selectedRegions, variable, dataSource, dayRange, enosByMonth])
+
+  // Solicitar ubicación al iniciar para preseleccionar las 3 regiones más cercanas
+  useEffect(() => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      ({ coords: { latitude: lat, longitude: lng } }) => {
+        const nearest = Object.entries(REGION_CENTROIDS)
+          .map(([region, c]) => ({ region, dist: haversineKm(lat, lng, c.lat, c.lng) }))
+          .sort((a, b) => a.dist - b.dist)
+          .slice(0, 3)
+          .map(d => d.region)
+        setSelectedRegions(nearest)
+      },
+      () => {},
+      { timeout: 8000 },
+    )
+  }, [])
 
   // Auto-scroll al gráfico detallado en móvil al seleccionar una región
   useEffect(() => {

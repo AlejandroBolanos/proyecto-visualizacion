@@ -177,9 +177,9 @@ export function OverviewChart({ rawRecords, source, dayRange, selectedRegions, s
       return (
         <Bar key={region} dataKey={region} fill={color} radius={[3, 3, 0, 0]} maxBarSize={28}>
           <LabelList dataKey={region} position="top" content={({ x, y, width, value }) => {
-            if (!value || value <= 50) return null
+            if (!value || (variable === 'precipitacion_mm' && value <= 50)) return null
             return <text x={(x ?? 0) + (width ?? 0) / 2} y={(y ?? 0) - 4}
-              textAnchor="middle" fill="var(--text-4)" fontSize={9}>{Number(value).toFixed(0)}</text>
+              textAnchor="middle" fill="var(--text-1)" fontSize={10}>{Number(value).toFixed(variable === 'precipitacion_mm' ? 0 : 1)}</text>
           }} />
         </Bar>
       )
@@ -204,7 +204,7 @@ export function OverviewChart({ rawRecords, source, dayRange, selectedRegions, s
             <CartesianGrid strokeDasharray="2 4" stroke="var(--border)" vertical={false} />
             <EnosAreas data={chartData} />
             <XAxis dataKey="mes_nombre" tick={tickStyle} axisLine={false} tickLine={false} />
-            <YAxis tick={tickStyle} axisLine={false} tickLine={false} width={44} />
+            <YAxis tick={tickStyle} axisLine={false} tickLine={false} width={10} />
             <Tooltip content={(props) => <TooltipCustom {...props} mode="overview" variable={variable} />} cursor={{ fill: 'rgba(120,113,108,0.04)' }} />
             {renderSeries()}
           </ComposedChart>
@@ -259,10 +259,10 @@ export function DetailChart({ rawRecords, source, dayRange, region, selectedYear
             <CartesianGrid strokeDasharray="2 4" stroke="var(--border)" vertical={false} />
             <EnosAreas data={chartData} />
             <XAxis dataKey="mes_nombre" tick={tickStyle} axisLine={false} tickLine={false} />
-            <YAxis yAxisId="prec" orientation="left" tick={tickStyle} axisLine={false} tickLine={false} width={44}
-              label={{ value: 'mm', angle: -90, position: 'insideLeft', fill: 'var(--text-3)', fontSize: 10, fontFamily: 'var(--font-mono)', dy: 16 }} />
-            <YAxis yAxisId="temp" orientation="right" tick={tickStyle} axisLine={false} tickLine={false} width={44}
-              label={{ value: '°C', position: 'insideRight', fill: 'var(--text-3)', fontSize: 10, fontFamily: 'var(--font-mono)', dy: -12 }} />
+            <YAxis yAxisId="prec" orientation="left" tick={tickStyle} axisLine={false} tickLine={false} width={10}
+              label={{ value: 'mm', position: 'insideLeft', fill: 'var(--text-2)', fontSize: 11, dy: -12, dx: -53 }} />
+            <YAxis yAxisId="temp" orientation="right" tick={tickStyle} axisLine={false} tickLine={false} width={10}
+              label={{ value: '°C', position: 'insideRight', fill: 'var(--text-2)', fontSize: 11, dy: -12, dx: 35 }} />
             <Tooltip content={<TooltipCustom />} cursor={{ fill: 'rgba(120,113,108,0.04)' }} />
             {renderPrecip()}
             <Line yAxisId="temp" type="monotone" dataKey="temp_media_c" name="Temp. media (°C)"

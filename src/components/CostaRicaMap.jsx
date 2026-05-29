@@ -436,8 +436,7 @@ export default function CostaRicaMap({
               onClick={() => onRegionClick(name === selectedDetail ? null : name)}
             >
               <span className="dot" />
-              <span className="lbl" style={{ fontSize: 11.5 }}>{name}</span>
-              {value != null && <span className="val">{value.toFixed(1)}{unit}</span>}
+              <span className="label" style={{ fontSize: 11.5 }}>{name} {value != null && `(${value.toFixed(1)}${unit})`}</span>
             </button>
           )
         })}

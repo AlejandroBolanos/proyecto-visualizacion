@@ -28,7 +28,7 @@ const MONTHS = [
 
 const ALL_MONTHS = MONTHS.map(m => m.n)
 
-const REGION_CENTROIDS = {
+export const REGION_CENTROIDS = {
   'Pacífico Norte':   { lat: 10.6, lng: -85.4 },
   'Pacífico Central': { lat: 9.8,  lng: -84.8 },
   'Pacífico Sur':     { lat: 8.7,  lng: -83.5 },
@@ -38,7 +38,7 @@ const REGION_CENTROIDS = {
   'Caribe Sur':       { lat: 9.4,  lng: -82.9 },
 }
 
-function haversineKm(lat1, lon1, lat2, lon2) {
+export function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371
   const dLat = (lat2 - lat1) * Math.PI / 180
   const dLon = (lon2 - lon1) * Math.PI / 180
